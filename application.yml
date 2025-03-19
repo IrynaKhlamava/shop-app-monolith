@@ -1,0 +1,15 @@
+spring:
+  data:
+    mongodb:
+      uri: mongodb://root:lamashop@localhost:27017/lama_shop?authSource=admin
+  redis:
+    host: ${SPRING_REDIS_HOST}
+    port: ${SPRING_REDIS_PORT}
+    password: ${SPRING_REDIS_PASSWORD}
+
+jwt:
+  secret: ${JWT_SECRET:NOT_SET}
+  access:
+    expiration: 600000
+  refresh:
+    expiration: 604800000
