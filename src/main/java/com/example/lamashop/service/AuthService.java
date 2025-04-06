@@ -3,15 +3,23 @@ package com.example.lamashop.service;
 import com.example.lamashop.dto.AuthResponseDto;
 import com.example.lamashop.dto.LoginRequest;
 import com.example.lamashop.dto.RegisterRequestDto;
-import com.example.lamashop.exception.ErrorMessages;
+import com.example.lamashop.exception.AppMessages;
 import com.example.lamashop.model.User;
 import com.example.lamashop.exception.CustomException;
 import com.example.lamashop.exception.EmailAlreadyExistsException;
+import com.example.lamashop.model.enumType.RoleName;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+
+import static com.example.lamashop.exception.AppMessages.BEARER_PREFIX;
+import static com.example.lamashop.exception.AppMessages.INVALID_OR_EXPIRED_TOKEN;
+import static com.example.lamashop.exception.AppMessages.LOGOUT_SUCCESS;
+import static com.example.lamashop.exception.AppMessages.NO_TOKEN_PROVIDED;
 
 @Service
 @RequiredArgsConstructor
@@ -34,7 +42,7 @@ public class AuthService {
 
         logger.info("New user registered: {}", newUser.getEmail());
 
-        return generateAuthTokens(newUser.getId());
+        return createAuthResponse(newUser);
     }
 
     public AuthResponseDto login(LoginRequest request) {
@@ -43,50 +51,95 @@ public class AuthService {
 
         handleOldRefreshToken(user.getId());
 
-        return generateAuthTokens(user.getId());
+        return createAuthResponse(user);
     }
 
     private void handleOldRefreshToken(String userId) {
-        String oldRefreshToken = redisTokenService.getActiveRefreshToken(userId);
 
+        String oldRefreshToken = redisTokenService.getActiveRefreshToken(userId);
+        logger.debug("Old refresh token: {}", oldRefreshToken );
         if (oldRefreshToken != null) {
             logger.info("Blacklisting old refresh token for user: {}", userId);
             redisTokenService.blacklistToken(oldRefreshToken, jwtService.getExpirationTime(oldRefreshToken));
+
+            logger.info("Removing old refresh token from whitelist for user: {}", userId);
+            redisTokenService.removeFromWhitelist(oldRefreshToken);
         }
     }
 
     public AuthResponseDto refreshAccessToken(String refreshToken) {
 
-        String userId = validateRefreshToken(refreshToken);
+        String extractedRefreshToken = extractToken(refreshToken);
 
-        String newAccessToken = jwtService.generateAccessToken(userId);
+        String userId = validateRefreshToken(extractedRefreshToken);
 
-        return new AuthResponseDto(newAccessToken, refreshToken);
+        RoleName role = userService.getUserRole(userId);
+
+        String newAccessToken = jwtService.generateAccessToken(userId, role);
+
+        return new AuthResponseDto(newAccessToken, extractedRefreshToken, userId);
     }
 
     private String validateRefreshToken(String refreshToken) {
+
         if (redisTokenService.isTokenBlacklisted(refreshToken)) {
-            throw new CustomException(ErrorMessages.REFRESH_TOKEN_BLACKLISTED, HttpStatus.UNAUTHORIZED);
+            throw new CustomException(AppMessages.REFRESH_TOKEN_BLACKLISTED, HttpStatus.UNAUTHORIZED);
         }
 
         if (!redisTokenService.isRefreshTokenValid(refreshToken)) {
-            throw new CustomException(ErrorMessages.REFRESH_TOKEN_INVALID, HttpStatus.UNAUTHORIZED);
+            throw new CustomException(AppMessages.REFRESH_TOKEN_INVALID, HttpStatus.UNAUTHORIZED);
         }
 
         if (jwtService.isTokenExpired(refreshToken)) {
-            throw new CustomException(ErrorMessages.REFRESH_TOKEN_EXPIRED, HttpStatus.UNAUTHORIZED);
+            throw new CustomException(AppMessages.REFRESH_TOKEN_EXPIRED, HttpStatus.UNAUTHORIZED);
         }
 
         return jwtService.extractUserId(refreshToken);
     }
 
-    public AuthResponseDto generateAuthTokens(String userId) {
+    public String extractToken(String header) {
+        if (header != null && header.startsWith(BEARER_PREFIX)) {
+            return header.substring(7);
+        }
 
-        String accessToken = jwtService.generateAccessToken(userId);
-        String refreshToken = jwtService.generateRefreshToken(userId);
+        return header;
+    }
+
+    public AuthResponseDto createAuthResponse(User user) {
+
+        String userId = user.getId();
+
+        RoleName userRole = user.getRole();
+
+        String accessToken = jwtService.generateAccessToken(userId, userRole);
+        String refreshToken = jwtService.generateRefreshToken(userId,userRole);
 
         redisTokenService.storeRefreshToken(userId, refreshToken, jwtService.getExpirationTime(refreshToken));
 
-        return new AuthResponseDto(accessToken, refreshToken);
+        return new AuthResponseDto(accessToken, refreshToken, user.getId());
+    }
+
+    public String logout(HttpServletRequest request) {
+        String authHeader = request.getHeader(HttpHeaders.AUTHORIZATION);
+
+        if (authHeader != null && authHeader.startsWith(BEARER_PREFIX)) {
+            String token = authHeader.substring(7);
+
+            if (jwtService.validateToken(token)) {
+                long expiration = jwtService.getExpirationTime(token);
+
+                redisTokenService.blacklistToken(token, expiration);
+                redisTokenService.removeFromWhitelist(token);
+
+                logger.info("Access token blacklisted and removed from whitelist");
+                return LOGOUT_SUCCESS;
+            } else {
+                logger.warn("Logout called with invalid token");
+                return INVALID_OR_EXPIRED_TOKEN;
+            }
+        } else {
+            logger.warn("No Authorization header provided on logout");
+            return NO_TOKEN_PROVIDED;
+        }
     }
 }

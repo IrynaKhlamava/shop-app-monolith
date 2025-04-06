@@ -13,7 +13,7 @@ public class CustomException extends RuntimeException {
         this.status = status;
     }
 
-    public CustomException(ErrorMessages errorMessage, HttpStatus status) {
+    public CustomException(AppMessages errorMessage, HttpStatus status) {
         super(errorMessage.toString());
         this.status = status;
     }

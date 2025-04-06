@@ -28,4 +28,6 @@ public class ProductDto {
 
     private List<String> categories;
 
+    private boolean available;
+
 }

@@ -2,6 +2,7 @@ package com.example.lamashop.model;
 
 import com.example.lamashop.model.enumType.OrderStatus;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -15,12 +16,15 @@ import java.util.List;
 @Document(collection = "orders")
 @Getter
 @Setter
+@Builder
 @NoArgsConstructor
 @AllArgsConstructor
 public class Order {
 
     @Id
     private String id;
+
+    private long orderNumber;
 
     private String userId;
 

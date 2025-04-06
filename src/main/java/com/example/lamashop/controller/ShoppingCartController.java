@@ -24,21 +24,21 @@ public class ShoppingCartController {
             @RequestParam String productId,
             @RequestParam int quantity) {
 
-        shoppingCartService.addToCart(userId, productId, quantity);
-        return ResponseEntity.ok(shoppingCartService.getCart(userId));
+        return ResponseEntity.ok(shoppingCartService.addToCart(userId, productId, quantity));
     }
 
     @GetMapping("/{userId}")
     public ResponseEntity<CartDto> getCart(@PathVariable String userId) {
+
         return ResponseEntity.ok(shoppingCartService.getCart(userId));
     }
 
     @DeleteMapping("/{userId}/remove")
-    public ResponseEntity<Void> removeFromCart(
+    public ResponseEntity<CartDto> removeFromCart(
             @PathVariable String userId,
             @RequestParam String productId) {
-        shoppingCartService.removeFromCart(userId, productId);
-        return ResponseEntity.ok().build();
+
+        return ResponseEntity.ok(shoppingCartService.removeFromCartAndReturn(userId, productId));
     }
 
     @DeleteMapping("/{userId}/clear")
@@ -46,4 +46,14 @@ public class ShoppingCartController {
         shoppingCartService.clearCart(userId);
         return ResponseEntity.ok().build();
     }
+
+    @PostMapping("/{userId}/update")
+    public ResponseEntity<CartDto> updateCartItem(
+            @PathVariable String userId,
+            @RequestParam String productId,
+            @RequestParam int quantity) {
+
+        return ResponseEntity.ok(shoppingCartService.updateCartAndReturn(userId, productId, quantity));
+    }
+
 }

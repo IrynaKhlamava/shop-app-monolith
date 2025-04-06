@@ -20,4 +20,6 @@ public class OrderItem {
     private int quantity;
 
     private BigDecimal price;
+
+    private boolean returned = false;
 }

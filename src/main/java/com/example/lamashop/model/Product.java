@@ -38,4 +38,6 @@ public class Product {
 
     private List<String> categories;
 
+    private boolean available = true;
+
 }

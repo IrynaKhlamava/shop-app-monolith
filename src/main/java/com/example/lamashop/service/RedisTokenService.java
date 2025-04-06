@@ -1,6 +1,8 @@
 package com.example.lamashop.service;
 
 import lombok.RequiredArgsConstructor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +19,10 @@ public class RedisTokenService {
     private static final String WHITE_LIST_PREFIX = "whitelist:";
     private static final String BLACKLIST_PREFIX = "blacklist:";
 
+    private static final Logger logger = LoggerFactory.getLogger(RedisTokenService.class);
+
     public void storeRefreshToken(String userId, String refreshToken, long expirationMillis) {
+        logger.debug("Saving refresh token: {}", WHITE_LIST_PREFIX + refreshToken);
         redisTemplate.opsForValue().set(WHITE_LIST_PREFIX + refreshToken, userId, Duration.ofMillis(expirationMillis));
     }
 
@@ -26,6 +31,7 @@ public class RedisTokenService {
     }
 
     public boolean isRefreshTokenValid(String refreshToken) {
+        logger.debug("Checking refresh token in Redis: {}", WHITE_LIST_PREFIX + refreshToken);
         return Boolean.TRUE.equals(redisTemplate.hasKey(WHITE_LIST_PREFIX + refreshToken));
     }
 
@@ -43,5 +49,9 @@ public class RedisTokenService {
             }
         }
         return null;
+    }
+
+    public void removeFromWhitelist(String oldRefreshToken) {
+        redisTemplate.delete(WHITE_LIST_PREFIX + oldRefreshToken);
     }
 }

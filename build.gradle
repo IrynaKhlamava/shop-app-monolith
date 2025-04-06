@@ -45,6 +45,8 @@ dependencies {
 
     annotationProcessor 'org.projectlombok:lombok-mapstruct-binding:0.2.0'
 
+    annotationProcessor 'org.springframework.boot:spring-boot-configuration-processor'
+
 }
 
 tasks.named('test') {

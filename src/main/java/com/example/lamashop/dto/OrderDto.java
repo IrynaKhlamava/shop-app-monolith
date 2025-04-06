@@ -17,6 +17,8 @@ public class OrderDto {
 
     private String id;
 
+    private long orderNumber;
+
     private List<OrderItemDto> items;
 
     private BigDecimal totalPrice;
