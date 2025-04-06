@@ -1,7 +1,8 @@
 package com.example.lamashop.service;
 
 import com.example.lamashop.exception.CustomException;
-import com.example.lamashop.exception.ErrorMessages;
+import com.example.lamashop.exception.AppMessages;
+import com.example.lamashop.model.enumType.RoleName;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.JwtException;
@@ -14,10 +15,16 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 
 import javax.crypto.SecretKey;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,21 +41,24 @@ public class JwtService {
     private static final Logger logger = LoggerFactory.getLogger(JwtService.class);
 
     private SecretKey getSigningKey() {
-        logger.debug("Using JWT_SECRET (Base64 Encoded): {}", secretKeyBase64);
         byte[] keyBytes = Decoders.BASE64.decode(secretKeyBase64);
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String generateAccessToken(String userId) {
-        return generateToken(userId, accessTokenExpiration);
+    public String generateAccessToken(String userId, RoleName userRole) {
+        return generateToken(userId, userRole, accessTokenExpiration);
     }
 
-    public String generateRefreshToken(String userId) {
-        return generateToken(userId, refreshTokenExpiration);
+    public String generateRefreshToken(String userId, RoleName userRole) {
+        return generateToken(userId, userRole, refreshTokenExpiration);
     }
 
-    private String generateToken(String userId, long expirationMs) {
+    private String generateToken(String userId, RoleName userRole, long expirationMs) {
+        Map<String, Object> claims = new HashMap<>();
+        claims.put("authorities", List.of("ROLE_" + userRole.name()));
+
         return Jwts.builder()
+                .setClaims(claims)
                 .setSubject(userId)
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expirationMs))
@@ -77,9 +87,9 @@ public class JwtService {
             logger.info("Token is valid");
             return true;
         } catch (ExpiredJwtException e) {
-            throw new CustomException(ErrorMessages.TOKEN_EXPIRED, HttpStatus.UNAUTHORIZED);
+            throw new CustomException(AppMessages.TOKEN_EXPIRED, HttpStatus.UNAUTHORIZED);
         } catch (JwtException | IllegalArgumentException e) {
-            throw new CustomException(ErrorMessages.INVALID_TOKEN, HttpStatus.UNAUTHORIZED);
+            throw new CustomException(AppMessages.INVALID_TOKEN, HttpStatus.UNAUTHORIZED);
         }
     }
 
@@ -108,5 +118,18 @@ public class JwtService {
         } catch (ExpiredJwtException e) {
             return 0;
         }
+    }
+
+    public List<GrantedAuthority> getAuthorities(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(getSigningKey())
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        List<String> roles = (List<String>) claims.get("authorities");
+        return roles.stream()
+                .map(SimpleGrantedAuthority::new)
+                .collect(Collectors.toList());
     }
 }

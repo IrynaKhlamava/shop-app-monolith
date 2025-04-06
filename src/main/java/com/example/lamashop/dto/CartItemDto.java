@@ -20,5 +20,7 @@ public class CartItemDto {
     private int quantity;
 
     private BigDecimal price;
+
+    private boolean returned;
 }
 

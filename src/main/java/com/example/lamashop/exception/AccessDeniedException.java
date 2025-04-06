@@ -4,6 +4,6 @@ import org.springframework.http.HttpStatus;
 
 public class AccessDeniedException extends CustomException {
     public AccessDeniedException() {
-        super(ErrorMessages.ACCESS_DENIED, HttpStatus.FORBIDDEN);
+        super(AppMessages.ACCESS_DENIED, HttpStatus.FORBIDDEN);
     }
 }

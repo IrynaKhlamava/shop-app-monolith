@@ -1,0 +1,29 @@
+server:
+  address: 0.0.0.0
+  port: 8080
+
+spring:
+  data:
+    mongodb:
+      uri: ${SPRING_DATA_MONGODB_URI}
+    redis:
+      host: ${SPRING_REDIS_HOST}
+      port: ${SPRING_REDIS_PORT}
+      password: ${SPRING_REDIS_PASSWORD}
+
+jwt:
+  secret: ${JWT_SECRET}
+  access:
+    expiration: ${JWT_ACCESS_EXPIRATION:600000}
+  refresh:
+    expiration: ${JWT_REFRESH_EXPIRATION:604800000}
+
+security:
+  public-paths:
+    - /api/auth/login
+    - /api/auth/register
+    - /api/auth/refresh
+
+logging:
+  level:
+    org.springframework.data.redis: DEBUG

@@ -5,6 +5,6 @@ import org.springframework.http.HttpStatus;
 public class NotEnoughStockException extends CustomException {
 
     public NotEnoughStockException() {
-        super(ErrorMessages.NOT_ENOUGH_STOCK, HttpStatus.BAD_REQUEST);
+        super(AppMessages.NOT_ENOUGH_STOCK, HttpStatus.BAD_REQUEST);
     }
 }

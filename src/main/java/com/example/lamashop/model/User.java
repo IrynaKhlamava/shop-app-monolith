@@ -9,8 +9,6 @@ import lombok.Setter;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
 
-import java.util.Set;
-
 @Document(collection = "users")
 @Getter
 @Setter
@@ -31,4 +29,6 @@ public class User {
     private String lastName;
 
     private RoleName role;
+
+    private String shippingAddress;
 }
