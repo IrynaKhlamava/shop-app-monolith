@@ -1,7 +1,7 @@
 services:
   mongo:
     image: mongodb/mongodb-community-server:latest
-    container_name: mongo_lama_shop
+    container_name: mongo_lama_shop_monolith
     restart: always
     ports:
       - "${MONGO_PORT}:27017"
@@ -14,7 +14,7 @@ services:
 
   redis:
     image: redis
-    container_name: redis_lama_shop
+    container_name: redis_lama_shop_monolith
     restart: always
     ports:
       - "${SPRING_REDIS_PORT}:6379"
@@ -24,7 +24,7 @@ services:
 
   app:
     build: .
-    container_name: lama_shop_app
+    container_name: lama_shop_app_monolith
     restart: always
     depends_on:
       - mongo

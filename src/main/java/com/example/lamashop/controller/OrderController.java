@@ -28,7 +28,7 @@ public class OrderController {
         return ResponseEntity.ok(orderService.placeOrder(userId, shippingAddress));
     }
 
-    @PreAuthorize("#userId == authentication.principal or hasRole('ADMIN')")
+    @PreAuthorize("#userId == principal or hasRole('ADMIN')")
     @GetMapping("/{userId}/history")
     public ResponseEntity<List<OrderDto>> getOrderHistory(@PathVariable String userId) {
         return ResponseEntity.ok(orderService.getOrderHistory(userId));
