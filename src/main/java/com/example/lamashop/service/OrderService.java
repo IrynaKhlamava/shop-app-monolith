@@ -86,7 +86,7 @@ public class OrderService {
     public OrderDto returnItem(String orderId, String productId) {
         logger.info("Processing return for order {}, product {}", orderId, productId);
         Order order = orderRepository.findById(orderId)
-                .orElseThrow(() -> new ResourceNotFoundException("Order"));
+                .orElseThrow(() -> new ResourceNotFoundException("Order", orderId));
 
         for (OrderItem item : order.getItems()) {
             if (item.getProductId().equals(productId)) {

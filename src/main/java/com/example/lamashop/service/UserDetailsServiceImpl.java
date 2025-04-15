@@ -1,5 +1,6 @@
 package com.example.lamashop.service;
 
+import com.example.lamashop.exception.UserNotFoundException;
 import com.example.lamashop.model.User;
 import com.example.lamashop.repository.UserRepository;
 import com.example.lamashop.exception.ResourceNotFoundException;
@@ -17,7 +18,7 @@ public class UserDetailsServiceImpl implements UserDetailsService {
     @Override
     public UserDetails loadUserByUsername(String email) throws UsernameNotFoundException {
         User user = userRepository.findByEmail(email)
-                .orElseThrow(ResourceNotFoundException::forUser);
+                .orElseThrow(() -> UserNotFoundException.byEmail(email));
         return org.springframework.security.core.userdetails.User
                 .withUsername(user.getEmail())
                 .password(user.getPassword())

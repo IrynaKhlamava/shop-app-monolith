@@ -1,5 +1,6 @@
 package com.example.lamashop.service;
 
+import com.example.lamashop.exception.OrderNumberGenerationException;
 import com.example.lamashop.model.OrderSequence;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.mongodb.core.FindAndModifyOptions;
@@ -21,6 +22,11 @@ public class OrderNumberGeneratorService {
         FindAndModifyOptions options = FindAndModifyOptions.options().returnNew(true).upsert(true);
 
         OrderSequence counter = mongoTemplate.findAndModify(query, update, options, OrderSequence.class);
+
+        if (counter == null) {
+            throw new OrderNumberGenerationException();
+        }
+
         return counter.getSeq();
     }
 }

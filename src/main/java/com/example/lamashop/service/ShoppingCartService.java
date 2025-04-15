@@ -2,6 +2,8 @@ package com.example.lamashop.service;
 
 import com.example.lamashop.dto.CartDto;
 import com.example.lamashop.dto.CartItemDto;
+import com.example.lamashop.dto.CartItemResult;
+import com.example.lamashop.dto.MissingProductDto;
 import com.example.lamashop.dto.ProductDto;
 import com.example.lamashop.mapper.CartMapper;
 import com.example.lamashop.model.Product;
@@ -17,6 +19,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class ShoppingCartService {
@@ -63,16 +67,16 @@ public class ShoppingCartService {
         Map<String, String> cartItems = cartRedisTemplate.<String, String>opsForHash().entries(cartKey);
 
         if (cartItems.isEmpty()) {
-            return new CartDto(userId, new ArrayList<>(), 0, BigDecimal.ZERO);
+            return new CartDto(userId, new ArrayList<>(), 0, BigDecimal.ZERO, new ArrayList<>());
         }
 
-        List<CartItemDto> items = convertCartItems(cartItems);
+        CartItemResult result = convertCartItems(cartItems);
 
-        int totalQuantity = calculateTotalQuantity(items);
+        int totalQuantity = calculateTotalQuantity(result.getAvailableItems());
+        BigDecimal totalPrice = calculateTotalPrice(result.getAvailableItems());
 
-        BigDecimal totalPrice = calculateTotalPrice(items);
+        return new CartDto(userId, result.getAvailableItems(), totalQuantity, totalPrice, result.getMissingItems());
 
-        return new CartDto(userId, items, totalQuantity, totalPrice);
     }
 
     private int calculateTotalQuantity(List<CartItemDto> items) {
@@ -81,20 +85,30 @@ public class ShoppingCartService {
                 .sum();
     }
 
-    private List<CartItemDto> convertCartItems(Map<String, String> cartItems) {
-        List<CartItemDto> items = new ArrayList<>();
+    private CartItemResult convertCartItems(Map<String, String> cartItems) {
+        List<String> productIds = new ArrayList<>(cartItems.keySet());
+        List<ProductDto> products = productService.getProductsByIds(productIds);
+
+        Map<String, ProductDto> productMap = products.stream()
+                .collect(Collectors.toMap(ProductDto::getId, Function.identity()));
+
+        List<CartItemDto> availableItems = new ArrayList<>();
+        List<MissingProductDto> missingItems = new ArrayList<>();
 
         for (Map.Entry<String, String> entry : cartItems.entrySet()) {
             String productId = entry.getKey();
-            int quantity =Integer.parseInt(entry.getValue());
+            int quantity = Integer.parseInt(entry.getValue());
 
-            ProductDto productDto = productService.getProductById(productId);
-            CartItemDto cartItem = cartMapper.toCartItemDto(productDto, quantity);
-
-            items.add(cartItem);
+            ProductDto productDto = productMap.get(productId);
+            if (productDto != null) {
+                CartItemDto cartItem = cartMapper.toCartItemDto(productDto, quantity);
+                availableItems.add(cartItem);
+            } else {
+                missingItems.add(new MissingProductDto(productId, "Unknown product"));
+            }
         }
 
-        return items;
+        return new CartItemResult(availableItems, missingItems);
     }
 
     private BigDecimal calculateTotalPrice(List<CartItemDto> items) {

@@ -1,10 +1,15 @@
+FROM gradle:8.5-jdk17 AS builder
+
+WORKDIR /app
+
+COPY . .
+RUN ./gradlew clean bootJar -x test
+
 FROM openjdk:17-jdk-slim
 
 WORKDIR /app
 
-COPY build/libs/*.jar app.jar
-
-RUN echo "SPRING_REDIS_HOST=${SPRING_REDIS_HOST}"
+COPY --from=builder /app/build/libs/*.jar app.jar
 
 EXPOSE 8080
 
