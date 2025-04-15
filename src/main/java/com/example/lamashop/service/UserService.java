@@ -3,11 +3,11 @@ package com.example.lamashop.service;
 import com.example.lamashop.dto.CustomerProfileDto;
 import com.example.lamashop.dto.RegisterRequestDto;
 import com.example.lamashop.dto.UserProfileDto;
+import com.example.lamashop.exception.UserNotFoundException;
 import com.example.lamashop.mapper.UserMapper;
 import com.example.lamashop.model.User;
 import com.example.lamashop.model.enumType.RoleName;
 import com.example.lamashop.repository.UserRepository;
-import com.example.lamashop.exception.ResourceNotFoundException;
 import com.example.lamashop.exception.ValidationException;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
@@ -49,7 +49,7 @@ public class UserService {
 
     public User validateUserCredentials(String email, String rawPassword) {
         User user = userRepository.findByEmail(email)
-                .orElseThrow((ResourceNotFoundException::forUser));
+                .orElseThrow(()-> UserNotFoundException.byEmail(email));
 
         if (!passwordEncoder.matches(rawPassword, user.getPassword())) {
             throw new ValidationException();
@@ -58,13 +58,9 @@ public class UserService {
         return user;
     }
 
-    public boolean existsByEmail(String email) {
-        return userRepository.existsByEmail(email);
-    }
-
     public UserProfileDto getUserProfile(String userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(ResourceNotFoundException::forUser);
+                .orElseThrow(()-> UserNotFoundException.byId(userId));
 
         if (user.getRole() == RoleName.CUSTOMER) {
             logger.info("Get CUSTOMER Profile with id {}", userId);
@@ -77,7 +73,7 @@ public class UserService {
 
     public CustomerProfileDto updateShippingAddress(String userId, String newAddress) {
         User user = userRepository.findById(userId)
-                .orElseThrow(ResourceNotFoundException::forUser);
+                .orElseThrow(()-> UserNotFoundException.byId(userId));
         user.setShippingAddress(newAddress);
         userRepository.save(user);
 
@@ -90,7 +86,7 @@ public class UserService {
 
     public RoleName getUserRole(String userId) {
         User user = findById(userId)
-                .orElseThrow(ResourceNotFoundException::forUser);
+                .orElseThrow(()-> UserNotFoundException.byId(userId));
 
         return user.getRole();
     }

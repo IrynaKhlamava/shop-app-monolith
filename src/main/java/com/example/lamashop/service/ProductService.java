@@ -12,6 +12,8 @@ import com.mongodb.client.result.UpdateResult;
 import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.data.mongodb.core.FindAndModifyOptions;
 import org.springframework.data.mongodb.core.MongoTemplate;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
@@ -31,6 +33,12 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class ProductService {
 
+    @Value("${app.upload-dir}")
+    private String uploadDir;
+
+    @Value("${app.upload-product-image-path}")
+    private String uploadProductImagePath;
+
     private static final Logger logger = LoggerFactory.getLogger(ProductService.class);
 
     private final ProductRepository productRepository;
@@ -38,8 +46,6 @@ public class ProductService {
     private final ProductMapper productMapper;
 
     private final MongoTemplate mongoTemplate;
-
-    private static final String UPLOAD_DIR = "/app/uploads/";
 
     public List<ProductDto> getAllProducts() {
         logger.info("Get all products");
@@ -49,8 +55,15 @@ public class ProductService {
     public ProductDto getProductById(String id) {
         logger.info("Get product with id: {}", id);
         Product product = productRepository.findById(id)
-                .orElseThrow(ResourceNotFoundException::forProduct);
+                .orElseThrow(()-> new ResourceNotFoundException("Product", id));
         return productMapper.toDto(product);
+    }
+
+    public List<ProductDto> getProductsByIds(List<String> ids) {
+        return productRepository.findAllById(ids)
+                .stream()
+                .map(productMapper::toDto)
+                .collect(Collectors.toList());
     }
 
     public ProductDto createProduct(ProductDto productDto) {
@@ -66,12 +79,12 @@ public class ProductService {
 
         try {
             String filename = UUID.randomUUID() + "_" + file.getOriginalFilename();
-            Path uploadPath = Paths.get(UPLOAD_DIR);
+            Path uploadPath = Paths.get(uploadDir);
             Files.createDirectories(uploadPath);
             Path filePath = uploadPath.resolve(filename);
             Files.write(filePath, file.getBytes());
 
-            product.setImage("/uploads/" + filename);
+            product.setImage(uploadProductImagePath + filename);
             productRepository.save(product);
 
             logger.info("Uploaded image for product {}: {}", productId, filename);
@@ -85,10 +98,7 @@ public class ProductService {
 
     private Product getProductByIdOrThrow(String productId) {
         return productRepository.findById(productId)
-                .orElseThrow(() -> {
-                    logger.error("Product not found: ID={}", productId);
-                    return ResourceNotFoundException.forProduct();
-                });
+                .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
     }
 
     public ProductDto updateProduct(String id, ProductDto ProductDto) {
@@ -106,7 +116,7 @@ public class ProductService {
 
     public Product validateProductAvailability(String productId, int requestedQuantity) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(ResourceNotFoundException::forProduct);
+                .orElseThrow(()-> new ResourceNotFoundException("Product", productId));
 
         if (product.getAmountLeft() < requestedQuantity) {
             throw new NotEnoughStockException();
@@ -117,25 +127,27 @@ public class ProductService {
 
     public void updateStockAfterOrder(List<CartItemDto> items) {
         for (CartItemDto item : items) {
-
             String productId = item.getProductId();
             int quantity = item.getQuantity();
-            Query query = new Query(Criteria.where("_id").is(item.getProductId())
-                    .and("amountLeft").gte(item.getQuantity()));
-            Update update = new Update().inc("amountLeft", -item.getQuantity());
 
-            UpdateResult result = mongoTemplate.updateFirst(query, update, Product.class);
+            Query query = new Query(Criteria.where("_id").is(productId).and("amountLeft").gte(quantity));
+            Update update = new Update().inc("amountLeft", -quantity);
 
-            if (result.getMatchedCount() == 0) {
+            Product updatedProduct = mongoTemplate.findAndModify(query, update,
+                    FindAndModifyOptions.options().returnNew(false), Product.class
+            );
+
+            if (updatedProduct == null) {
                 throw new NotEnoughStockException();
             }
+
             logger.info("Stock updated successfully for product {}. Deducted {}", productId, quantity);
         }
     }
 
     public void setAvailability(String productId, boolean available) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product with id:" + productId));
+                .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
 
         product.setAvailable(available);
         productRepository.save(product);
@@ -150,7 +162,7 @@ public class ProductService {
 
     public void increaseStock(String productId, int quantity) {
         Product product = productRepository.findById(productId)
-                .orElseThrow(() -> new ResourceNotFoundException("Product"));
+                .orElseThrow(() -> new ResourceNotFoundException("Product", productId));
 
         int previousStock = product.getAmountLeft();
         product.setAmountLeft(previousStock + quantity);

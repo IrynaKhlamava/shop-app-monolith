@@ -22,5 +22,7 @@ public class CartDto {
 
     private BigDecimal totalPrice;
 
+    private List<MissingProductDto> missingProducts;
+
 }
 
